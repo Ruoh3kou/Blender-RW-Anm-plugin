@@ -1,12 +1,12 @@
 import bpy
 from bpy.props import (
-        StringProperty,
-        FloatProperty,
-        )
+    StringProperty,
+    FloatProperty,
+)
 from bpy_extras.io_utils import (
-        ImportHelper,
-        ExportHelper,
-        )
+    ImportHelper,
+    ExportHelper,
+)
 from . anm import unpack_rw_lib_id, pack_rw_lib_id
 
 bl_info = {
@@ -28,6 +28,8 @@ if "bpy" in locals():
         importlib.reload(import_rw_anm)
     if "export_rw_anm" in locals():
         importlib.reload(export_rw_anm)
+    if "convert_rw_anm" in locals():
+        importlib.reload(convert_rw_anm)
 
 
 class ImportRenderWareAnm(bpy.types.Operator, ImportHelper):
@@ -101,7 +103,8 @@ class ExportRenderWareAnm(bpy.types.Operator, ExportHelper):
             animation_data = arm_obj.animation_data
             if animation_data and animation_data.action and 'dragonff_rw_version' in animation_data.action:
                 rw_version = animation_data.action['dragonff_rw_version']
-                self.export_version = '%x.%x.%x.%x' % unpack_rw_lib_id(rw_version)
+                self.export_version = '%x.%x.%x.%x' % unpack_rw_lib_id(
+                    rw_version)
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -123,6 +126,29 @@ class ExportRenderWareAnm(bpy.types.Operator, ExportHelper):
         return pack_rw_lib_id(*map(lambda c: int('0x%c' % c, 0), (ver[0], ver[2], ver[4], ver[6])))
 
 
+class ConvertRenderWareAnm(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_scene.renderware_anm_convert"
+    bl_label = "Import Convert RenderWare Animation"
+    bl_options = {'PRESET'}
+
+    filter_glob: StringProperty(default="*.anm", options={'HIDDEN'})
+    filename_ext = ".anm"
+
+    fps: FloatProperty(
+        name="FPS",
+        description="Value by which the keyframe time is multiplied",
+        default=30.0,
+    )
+
+    def execute(self, context):
+        from . import convert_rw_anm
+
+        keywords = self.as_keywords(ignore=("filter_glob",
+                                            ))
+
+        return convert_rw_anm.load(context, **keywords)
+
+
 def menu_func_import(self, context):
     self.layout.operator(ImportRenderWareAnm.bl_idname,
                          text="RenderWare Animation (.anm)")
@@ -133,9 +159,15 @@ def menu_func_export(self, context):
                          text="RenderWare Animation (.anm)")
 
 
+def menu_func_convert(self, context):
+    self.layout.operator(ConvertRenderWareAnm.bl_idname,
+                         text="RW Anm 转换(.anm)")
+
+
 classes = (
     ImportRenderWareAnm,
     ExportRenderWareAnm,
+    ConvertRenderWareAnm
 )
 
 
@@ -145,11 +177,13 @@ def register():
 
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_convert)
 
 
 def unregister():
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_convert)
 
     for cls in classes:
         bpy.utils.unregister_class(cls)
