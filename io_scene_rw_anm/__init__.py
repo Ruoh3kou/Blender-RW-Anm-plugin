@@ -1,18 +1,20 @@
 import bpy
 from bpy.props import (
-    StringProperty,
-    FloatProperty,
-)
+        StringProperty,
+        FloatProperty,
+        CollectionProperty,
+        )
 from bpy_extras.io_utils import (
-    ImportHelper,
-    ExportHelper,
-)
+        ImportHelper,
+        ExportHelper,
+        )
+from pathlib import Path
 from . anm import unpack_rw_lib_id, pack_rw_lib_id
 
 bl_info = {
     "name": "RenderWare Animation",
     "author": "Psycrow",
-    "version": (0, 1, 2),
+    "version": (0, 1, 3),
     "blender": (2, 81, 0),
     "location": "File > Import-Export",
     "description": "Import / Export RenderWare Animation (.anm)",
@@ -46,13 +48,17 @@ class ImportRenderWareAnm(bpy.types.Operator, ImportHelper):
         default=30.0,
     )
 
+    files: CollectionProperty(type=bpy.types.PropertyGroup)
+
     def execute(self, context):
         from . import import_rw_anm
 
-        keywords = self.as_keywords(ignore=("filter_glob",
-                                            ))
-
-        return import_rw_anm.load(context, **keywords)
+        files_dir = Path(self.filepath)
+        for selection in self.files:
+            file_path = Path(files_dir.parent, selection.name)
+            if file_path.suffix.lower() == self.filename_ext:
+                import_rw_anm.load(context, file_path, self.fps)
+        return {'FINISHED'}
 
 
 class ExportRenderWareAnm(bpy.types.Operator, ExportHelper):
